@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Sistema Profissional de Agendamento</title>
+
+<style>
+body{
+    font-family:'Segoe UI',sans-serif;
+    margin:0;
+    background:#f1f5f9;
+}
+
+header{
+    background:#0f172a;
+    color:white;
+    padding:15px 30px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+header button{
+    background:#1e293b;
+    color:white;
+    border:none;
+    padding:8px 12px;
+    border-radius:6px;
+    margin-left:5px;
+}
+
+.container{
+    max-width:1100px;
+    margin:auto;
+    padding:30px;
+}
+
+.calendar-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:15px;
+}
+
+.calendar{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:8px;
+}
+
+.day{
+    background:white;
+    padding:12px;
+    border-radius:8px;
+    text-align:center;
+    cursor:pointer;
+    border:1px solid #e2e8f0;
+    transition:0.2s;
+}
+
+.day:hover{
+    background:#e0f2fe;
+}
+
+.selected{
+    background:#2563eb;
+    color:white;
+    font-weight:bold;
+}
+
+.horarios{
+    margin-top:30px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+    gap:15px;
+}
+
+.horario{
+    background:white;
+    padding:20px 10px;
+    border-radius:12px;
+    text-align:center;
+    border:2px solid #e2e8f0;
+    cursor:pointer;
+    font-weight:600;
+    transition:0.2s;
+    box-shadow:0 4px 10px rgba(0,0,0,0.05);
+}
+
+.horario:hover{
+    border-color:#2563eb;
+    transform:translateY(-3px);
+}
+
+.ocupado{
+    background:#fee2e2;
+    border-color:#ef4444;
+    color:#991b1b;
+    cursor:not-allowed;
+}
+
+.modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.5);
+    justify-content:center;
+    align-items:center;
+}
+
+.modal-content{
+    background:white;
+    padding:25px;
+    border-radius:12px;
+    width:350px;
+}
+
+.card{
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 4px 12px rgba(0,0,0,0.05);
+}
+
+input, select{
+    width:100%;
+    padding:8px;
+    margin-top:8px;
+    border-radius:6px;
+    border:1px solid #cbd5e1;
+}
+</style>
+</head>
+<body>
+
+<header>
+    <h2>📅 Sistema de Agendamento</h2>
+    <div>
+        <button onclick="mostrarAgenda()">Agenda</button>
+        <button onclick="mostrarLista()">Agendamentos</button>
+        <button onclick="mostrarServicos()">Serviços</button>
+    </div>
+</header>
+
+<div class="container">
+
+<!-- AGENDA -->
+<div id="paginaAgenda">
+<div class="calendar-header">
+    <button onclick="mudarMes(-1)">◀</button>
+    <h3 id="mesTitulo"></h3>
+    <button onclick="mudarMes(1)">▶</button>
+</div>
+<div class="calendar" id="calendar"></div>
+<h3 style="margin-top:30px;">Horários</h3>
+<div class="horarios" id="horarios"></div>
+</div>
+
+<!-- LISTA AGENDAMENTOS -->
+<div id="paginaLista" style="display:none;">
+    <h2>📋 Agendamentos</h2>
+    <div id="lista"></div>
+</div>
+
+<!-- CRUD SERVIÇOS -->
+<div id="paginaServicos" style="display:none;">
+    <h2>🛠 Serviços</h2>
+
+    <h3>Criar Novo Serviço</h3>
+    <input type="text" id="novoNome" placeholder="Nome do Serviço">
+    <input type="number" id="novaDuracao" placeholder="Duração (min)">
+    <input type="number" id="novoPreco" placeholder="Preço (R$)">
+    <button onclick="criarServico()" style="margin-top:10px;">Adicionar Serviço</button>
+
+    <h3 style="margin-top:30px;">Lista de Serviços</h3>
+    <div id="listaServicos"></div>
+</div>
+
+</div>
+
+<!-- MODAL AGENDAMENTO -->
+<div class="modal" id="modal">
+<div class="modal-content">
+    <h3>Novo Agendamento</h3>
+    <p id="modalData"></p>
+    <select id="selectServico"></select>
+    <div style="margin-top:15px; display:flex; justify-content:space-between;">
+        <button onclick="fecharModal()">Cancelar</button>
+        <button onclick="confirmarAgendamento()">Confirmar</button>
+    </div>
+</div>
+</div>
+
+<!-- MODAL DE SERVIÇOS -->
+<div class="modal" id="modalEditar">
+  <div class="modal-content">
+    <h3>Editar Serviço</h3>
+
+    <input type="hidden" id="editarId">
+
+    <label>Nome</label>
+    <input type="text" id="editarNome">
+
+    <label>Duração (min)</label>
+    <input type="number" id="editarDuracao">
+
+    <label>Preço (R$)</label>
+    <input type="number" id="editarPreco">
+
+    <div style="margin-top:15px; display:flex; justify-content:space-between;">
+      <button onclick="fecharModalEditar()">Cancelar</button>
+      <button onclick="salvarEdicaoServico()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const calendar = document.getElementById("calendar")
+const horariosDiv = document.getElementById("horarios")
+const listaDiv = document.getElementById("lista")
+const listaServicosDiv = document.getElementById("listaServicos")
+const selectServico = document.getElementById("selectServico")
+const modal = document.getElementById("modal")
+const modalData = document.getElementById("modalData")
+const mesTitulo = document.getElementById("mesTitulo")
+
+let dataSelecionada = null
+let horarioSelecionado = null
+let mesAtual = new Date()
+let cacheAgendamentos = {}
+let servicosCache = []
+
+const horariosBase = ["08:00","09:00","10:00","11:00","13:00","14:00","15:00","16:00"]
+
+function gerarCalendario(){
+    calendar.innerHTML=""
+    const ano = mesAtual.getFullYear()
+    const mes = mesAtual.getMonth()
+    mesTitulo.innerText = mesAtual.toLocaleString('pt-BR',{month:'long',year:'numeric'})
+    const ultimoDia = new Date(ano,mes+1,0)
+    for(let i=1;i<=ultimoDia.getDate();i++){
+        const data = new Date(ano,mes,i)
+        const dataFormatada = data.toISOString().split("T")[0]
+        const div = document.createElement("div")
+        div.classList.add("day")
+        div.innerText = i
+        div.onclick = ()=>{
+            document.querySelectorAll(".day").forEach(d=>d.classList.remove("selected"))
+            div.classList.add("selected")
+            dataSelecionada = dataFormatada
+            carregarHorarios()
+        }
+        calendar.appendChild(div)
+    }
+}
+
+function mudarMes(v){
+    mesAtual.setMonth(mesAtual.getMonth()+v)
+    gerarCalendario()
+}
+
+async function carregarHorarios(){
+    if(!dataSelecionada) return
+    const res = await fetch("http://localhost:3000/Agendamentos?dia="+dataSelecionada)
+    const dados = await res.json()
+    horariosDiv.innerHTML=""
+    horariosBase.forEach(h=>{
+        const div = document.createElement("div")
+        div.classList.add("horario")
+        div.innerText = h
+        const ocupado = dados.some(ag=>ag.horario===h)
+        if(ocupado){
+            div.classList.add("ocupado")
+            div.innerText+=" (Ocupado)"
+        }else{
+            div.onclick=()=>abrirModal(h)
+        }
+        horariosDiv.appendChild(div)
+    })
+}
+
+async function abrirModal(h){
+    horarioSelecionado = h
+    modalData.innerText = dataSelecionada+" às "+h
+    await carregarServicosSelect()
+    modal.style.display="flex"
+}
+
+function fecharModal(){
+    modal.style.display="none"
+}
+
+async function confirmarAgendamento(){
+    const servicoId = selectServico.value
+    const servico = servicosCache.find(s=>s.id==servicoId)
+    if(!servico) return alert("Selecione um serviço")
+    await fetch("http://localhost:3000/Agendamentos",{
+        method:"POST",
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            dia:dataSelecionada,
+            horario:horarioSelecionado,
+            servicoId:servico.id,
+            servicoNome:servico.nome,
+            duracao:servico.duracao,
+            preco:servico.preco
+        })
+    })
+    fecharModal()
+    carregarHorarios()
+}
+
+async function carregarLista(){
+    const res = await fetch("http://localhost:3000/Agendamentos")
+    const dados = await res.json()
+    listaDiv.innerHTML=""
+    dados.forEach(ag=>{
+        const card=document.createElement("div")
+        card.classList.add("card")
+        card.innerHTML=`
+            <div>
+                <strong>${ag.dia} - ${ag.horario}</strong><br>
+                ${ag.servicoNome} - R$ ${ag.preco}
+            </div>
+            <button onclick="deletarAg(${ag.id})">Excluir</button>
+        `
+        listaDiv.appendChild(card)
+    })
+}
+
+async function deletarAg(id){
+    await fetch("http://localhost:3000/Agendamentos/"+id,{method:"DELETE"})
+    carregarLista()
+}
+
+async function criarServico(){
+    const nome=document.getElementById("novoNome").value
+    const duracao=document.getElementById("novaDuracao").value
+    const preco=document.getElementById("novoPreco").value
+    if(!nome||!duracao||!preco) return alert("Preencha tudo")
+    await fetch("http://localhost:3000/Servicos",{
+        method:"POST",
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nome,duracao,preco})
+    })
+    document.getElementById("novoNome").value=""
+    document.getElementById("novaDuracao").value=""
+    document.getElementById("novoPreco").value=""
+    carregarServicos()
+}
+
+async function carregarServicos(){
+    const res=await fetch("http://localhost:3000/Servicos")
+    servicosCache=await res.json()
+    listaServicosDiv.innerHTML=""
+    servicosCache.forEach(s=>{
+        const card=document.createElement("div")
+        card.classList.add("card")
+        card.innerHTML=`
+            <div>
+                <strong>${s.nome}</strong><br>
+                ${s.duracao} min - R$ ${s.preco}
+            </div>
+            <div>
+                <button onclick='abrirModalEditar(${JSON.stringify(s)})'>Editar</button>
+                <button onclick="deletarServico(${s.id})">Excluir</button>
+            </div>
+        `
+        listaServicosDiv.appendChild(card)
+    })
+}
+
+async function deletarServico(id){
+    await fetch("http://localhost:3000/Servicos/"+id,{method:"DELETE"})
+    carregarServicos()
+}
+
+async function carregarServicosSelect(){
+    const res=await fetch("http://localhost:3000/Servicos")
+    servicosCache=await res.json()
+    selectServico.innerHTML="<option value=''>Selecione</option>"
+    servicosCache.forEach(s=>{
+        selectServico.innerHTML+=`<option value="${s.id}">${s.nome} - R$ ${s.preco}</option>`
+    })
+}
+
+function mostrarAgenda(){
+    paginaAgenda.style.display="block"
+    paginaLista.style.display="none"
+    paginaServicos.style.display="none"
+}
+
+function mostrarLista(){
+    paginaAgenda.style.display="none"
+    paginaLista.style.display="block"
+    paginaServicos.style.display="none"
+    carregarLista()
+}
+
+function mostrarServicos(){
+    paginaAgenda.style.display="none"
+    paginaLista.style.display="none"
+    paginaServicos.style.display="block"
+    carregarServicos()
+}
+
+const modalEditar = document.getElementById("modalEditar")
+
+function abrirModalEditar(servico){
+
+    document.getElementById("editarId").value = servico.id
+    document.getElementById("editarNome").value = servico.nome
+    document.getElementById("editarDuracao").value = servico.duracao
+    document.getElementById("editarPreco").value = servico.preco
+
+    modalEditar.style.display = "flex"
+}
+
+function fecharModalEditar(){
+    modalEditar.style.display = "none"
+}
+
+async function salvarEdicaoServico(){
+
+    const id = document.getElementById("editarId").value
+    const nome = document.getElementById("editarNome").value
+    const duracao = document.getElementById("editarDuracao").value
+    const preco = document.getElementById("editarPreco").value
+
+    if(!nome || !duracao || !preco){
+        alert("Preencha todos os campos")
+        return
+    }
+
+    await fetch("http://localhost:3000/Servicos/"+id,{
+        method:"PUT",
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            nome,
+            duracao,
+            preco
+        })
+    })
+
+    fecharModalEditar()
+    carregarServicos()
+}
+
+gerarCalendario()
+
+</script>
+</body>
+</html>

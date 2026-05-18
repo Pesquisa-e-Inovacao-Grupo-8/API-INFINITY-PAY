@@ -1,0 +1,27 @@
+{
+  "Agendamentos": [
+    {
+      "dia": "2026-02-01",
+      "horario": "08:00",
+      "servicoId": 1,
+      "servicoNome": "Corte Masculino",
+      "duracao": "120",
+      "preco": "80",
+      "id": 1
+    }
+  ],
+  "Servicos": [
+    {
+      "nome": "Corte Masculino",
+      "duracao": "120",
+      "preco": "80",
+      "id": 1
+    },
+    {
+      "nome": "Teste",
+      "duracao": "999",
+      "preco": "120",
+      "id": 2
+    }
+  ]
+}
